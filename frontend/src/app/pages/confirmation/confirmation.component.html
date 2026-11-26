@@ -1,0 +1,46 @@
+<section class="container wrap">
+  @if (booking(); as b) {
+    <div class="hero-card">
+      <div class="check" aria-hidden="true">
+        <svg viewBox="0 0 52 52"><path d="M14 27l8 8 16-17" /></svg>
+      </div>
+      <span class="eyebrow">Booking confirmed</span>
+      <h1>You're going to {{ b.hotelCity }}, {{ b.guestName.split(' ')[0] }}!</h1>
+      <p class="lead">Keep this reference safe. With it and <strong>{{ b.guestEmail }}</strong> you can view or cancel your booking at any time.</p>
+
+      <div class="reference">
+        <span class="label">Booking reference</span>
+        <div class="ref-row">
+          <code>{{ b.reference }}</code>
+          <button type="button" class="btn btn-dark" (click)="copy()">{{ copied() ? 'Copied' : 'Copy' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="details">
+      <img [src]="b.coverImageUrl" [alt]="b.hotelName" appImgFallback />
+      <div class="info">
+        <h2>{{ b.hotelName }}</h2>
+        <p class="muted">{{ b.hotelAddress }}</p>
+        <dl>
+          <div><dt>Room</dt><dd>{{ b.roomName }}</dd></div>
+          <div><dt>Guest</dt><dd>{{ b.guestName }}</dd></div>
+          <div><dt>Check-in</dt><dd>{{ b.checkIn | date: 'EEE, d MMM y' }}</dd></div>
+          <div><dt>Check-out</dt><dd>{{ b.checkOut | date: 'EEE, d MMM y' }}</dd></div>
+          <div><dt>Length</dt><dd>{{ b.nights }} {{ b.nights === 1 ? 'night' : 'nights' }} x {{ b.pricePerNight | currency: b.currency : 'symbol' : '1.0-0' }}</dd></div>
+          <div class="total"><dt>Total</dt><dd>{{ b.totalAmount | currency: b.currency : 'symbol' : '1.2-2' }}</dd></div>
+        </dl>
+        <div class="actions">
+          <a class="btn btn-primary" routerLink="/manage-booking" [queryParams]="{ reference: b.reference, email: b.guestEmail }">Manage booking</a>
+          <a class="btn btn-outline" routerLink="/hotels">Browse more hotels</a>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="missing">
+      <h1>Booking {{ reference() }}</h1>
+      <p>Your booking is saved. To see its details, look it up with your email address.</p>
+      <a class="btn btn-primary" routerLink="/manage-booking" [queryParams]="{ reference: reference() }">Find my booking</a>
+    </div>
+  }
+</section>

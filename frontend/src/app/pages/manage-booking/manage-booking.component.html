@@ -1,0 +1,83 @@
+<section class="container wrap">
+  <div class="intro fade-up">
+    <span class="eyebrow">Manage booking</span>
+    <h1>Find your booking</h1>
+    <p>Enter the reference from your confirmation (it looks like <code>SB-K7QM4XPA</code>) and the email you booked with.</p>
+  </div>
+
+  <div class="panel" [class.has-result]="booking()">
+    <!-- Lookup form -->
+    <form class="lookup fade-up" (ngSubmit)="find()" novalidate>
+      <div class="form-row">
+        <label for="reference">Booking reference</label>
+        <input id="reference" name="reference" class="input ref" [class.invalid]="formErrors()['reference']"
+               [(ngModel)]="reference" placeholder="SB-XXXXXXXX" autocomplete="off" maxlength="12" />
+        @if (formErrors()['reference']) { <span class="field-error">{{ formErrors()['reference'] }}</span> }
+      </div>
+      <div class="form-row">
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" class="input" [class.invalid]="formErrors()['email']"
+               [(ngModel)]="email" placeholder="you@example.com" autocomplete="email" />
+        @if (formErrors()['email']) { <span class="field-error">{{ formErrors()['email'] }}</span> }
+      </div>
+      <button class="btn btn-dark btn-block" type="submit" [disabled]="searching()">
+        {{ searching() ? 'Searching...' : 'Find booking' }}
+      </button>
+      @if (error()) { <div class="alert alert-error">{{ error() }}</div> }
+    </form>
+
+    <!-- Result -->
+    @if (booking(); as b) {
+      <article class="result">
+        @if (justCancelled()) {
+          <div class="alert alert-success">Your booking has been cancelled and the room released. Nothing is owed.</div>
+        }
+        <div class="result-media">
+          <img [src]="b.coverImageUrl" [alt]="b.hotelName" appImgFallback />
+          <span class="badge" [class]="'badge badge-' + b.status.toLowerCase()">{{ b.status === 'CONFIRMED' ? 'Confirmed' : 'Cancelled' }}</span>
+        </div>
+        <div class="result-body">
+          <span class="ref">{{ b.reference }}</span>
+          <h2>{{ b.hotelName }}</h2>
+          <p class="muted">{{ b.hotelAddress }}</p>
+          <dl>
+            <div><dt>Guest</dt><dd>{{ b.guestName }}</dd></div>
+            <div><dt>Room</dt><dd>{{ b.roomName }}</dd></div>
+            <div><dt>Check-in</dt><dd>{{ b.checkIn | date: 'EEE, d MMM y' }}</dd></div>
+            <div><dt>Check-out</dt><dd>{{ b.checkOut | date: 'EEE, d MMM y' }}</dd></div>
+            <div><dt>Nights</dt><dd>{{ b.nights }}</dd></div>
+            <div><dt>Total</dt><dd class="amount">{{ b.totalAmount | currency: b.currency : 'symbol' : '1.2-2' }}</dd></div>
+            <div><dt>Booked on</dt><dd>{{ b.createdAt | date: 'd MMM y, h:mm a' }}</dd></div>
+            @if (b.cancelledAt) { <div><dt>Cancelled on</dt><dd>{{ b.cancelledAt | date: 'd MMM y, h:mm a' }}</dd></div> }
+          </dl>
+
+          <div class="actions">
+            @if (b.cancellable) {
+              <button type="button" class="btn btn-danger" (click)="askCancel()">Cancel booking</button>
+            } @else if (b.status === 'CONFIRMED') {
+              <p class="muted note">This stay has already started, so it can't be cancelled online.</p>
+            }
+            <a class="btn btn-outline" [routerLink]="['/hotels', b.hotelId]">View hotel</a>
+            <button type="button" class="btn btn-outline" (click)="reset()">Look up another</button>
+          </div>
+        </div>
+      </article>
+    }
+  </div>
+</section>
+
+<!-- Cancel confirmation sheet (slides up) -->
+<div class="scrim" [class.open]="confirmOpen()" (click)="confirmOpen.set(false)"></div>
+<div class="sheet" [class.open]="confirmOpen()" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  @if (booking(); as b) {
+    <h2 id="sheet-title">Cancel this booking?</h2>
+    <p>{{ b.hotelName }}, {{ b.checkIn | date: 'd MMM' }} to {{ b.checkOut | date: 'd MMM y' }}. The room will be released for other guests. This cannot be undone.</p>
+    @if (cancelError()) { <div class="alert alert-error">{{ cancelError() }}</div> }
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-outline" (click)="confirmOpen.set(false)" [disabled]="cancelling()">Keep booking</button>
+      <button type="button" class="btn btn-danger" (click)="cancel()" [disabled]="cancelling()">
+        {{ cancelling() ? 'Cancelling...' : 'Yes, cancel it' }}
+      </button>
+    </div>
+  }
+</div>

@@ -1,0 +1,72 @@
+<section class="top">
+  <div class="container">
+    <span class="eyebrow fade-up">Search results</span>
+    <h1 class="fade-up" style="animation-delay: 80ms">
+      @if (location()) { Stays in <em>{{ location() }}</em> } @else { All stays }
+    </h1>
+    @if (hasDates()) {
+      <p class="when fade-up" style="animation-delay: 140ms">
+        {{ checkIn() | date: 'EEE d MMM' }} to {{ checkOut() | date: 'EEE d MMM y' }}
+        <span class="dot"></span> {{ nights() }} {{ nights() === 1 ? 'night' : 'nights' }}
+      </p>
+    }
+    @for (k of [formKey()]; track k) {
+      <div class="search fade-up" style="animation-delay: 200ms">
+        <app-search-form variant="compact" [initialLocation]="location()" [initialCheckIn]="checkIn()" [initialCheckOut]="checkOut()" />
+      </div>
+    }
+  </div>
+</section>
+
+<section class="container results">
+  <div class="toolbar">
+    <p class="count">
+      @if (!loading()) { <strong>{{ visible().length }}</strong> {{ visible().length === 1 ? 'hotel' : 'hotels' }} found }
+    </p>
+    <div class="controls">
+      @if (hasDates()) {
+        <label class="toggle">
+          <input type="checkbox" [ngModel]="onlyAvailable()" (ngModelChange)="onlyAvailable.set($event)" />
+          <span class="switch"></span>
+          Available only
+        </label>
+      }
+      <label class="sort">
+        <span>Sort</span>
+        <select [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+          <option value="recommended">Recommended</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="rating">Star rating</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">
+      {{ error() }}
+      <button class="btn btn-outline retry" type="button" (click)="load()">Try again</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="grid">
+      @for (n of [1, 2, 3, 4, 5, 6]; track n) { <div class="skeleton sk"></div> }
+    </div>
+  } @else if (!error() && visible().length === 0) {
+    <div class="empty fade-up">
+      <h2>No hotels match that search</h2>
+      <p>Try a different city, or clear the filters.</p>
+      <a class="btn btn-dark" routerLink="/hotels">See all hotels</a>
+    </div>
+  } @else {
+    <div class="grid">
+      @for (h of visible(); track h.id; let i = $index) {
+        <div class="fade-up" [style.animation-delay.ms]="i * 70">
+          <app-hotel-card [hotel]="h" [checkIn]="checkIn() || null" [checkOut]="checkOut() || null" />
+        </div>
+      }
+    </div>
+  }
+</section>

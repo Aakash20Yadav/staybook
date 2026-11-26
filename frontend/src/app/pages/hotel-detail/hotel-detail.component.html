@@ -1,0 +1,274 @@
+@if (loading()) {
+  <div class="container loading-wrap">
+    <div class="skeleton sk-hero"></div>
+    <div class="skeleton sk-line"></div>
+    <div class="skeleton sk-line short"></div>
+  </div>
+} @else if (loadError()) {
+  <div class="container state">
+    <h1>We couldn't open this hotel</h1>
+    <p>{{ loadError() }}</p>
+    <a routerLink="/hotels" class="btn btn-dark">Back to all hotels</a>
+  </div>
+} @else if (hotel(); as h) {
+  <!-- ===== Gallery slider ===== -->
+  <section class="gallery">
+    <div class="stage" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
+      <div class="rail" [style.transform]="'translateX(-' + slide() * 100 + '%)'">
+        @for (img of gallery(); track $index) {
+          <div class="frame"><img [src]="img" [alt]="h.name + ' photo ' + ($index + 1)" appImgFallback /></div>
+        }
+      </div>
+      <button class="nav prev" type="button" (click)="goTo(slide() - 1)" aria-label="Previous photo">
+        <svg width="22" height="22" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+      </button>
+      <button class="nav next" type="button" (click)="goTo(slide() + 1)" aria-label="Next photo">
+        <svg width="22" height="22" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+      </button>
+      <span class="counter">{{ slide() + 1 }} / {{ gallery().length }}</span>
+    </div>
+    <div class="container thumbs">
+      @for (img of gallery(); track $index) {
+        <button type="button" [class.active]="$index === slide()" (click)="goTo($index)" [attr.aria-label]="'Photo ' + ($index + 1)">
+          <img [src]="img" alt="" loading="lazy" appImgFallback />
+        </button>
+      }
+    </div>
+  </section>
+
+  <div class="container layout">
+    <!-- ===== Left column ===== -->
+    <article class="main">
+      <a routerLink="/hotels" class="back">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+        All hotels
+      </a>
+      <div class="title fade-up">
+        <span class="eyebrow">{{ h.city }}</span>
+        <h1>{{ h.name }}</h1>
+        <p class="address">
+          <span class="stars">@for (s of starsOf(h.starRating); track $index) { ★ }</span>
+          {{ h.address }}
+        </p>
+      </div>
+
+      <p class="description" appReveal>{{ h.description }}</p>
+
+      <section class="block" appReveal>
+        <h2>What this place offers</h2>
+        <ul class="amenities">
+          @for (a of h.amenities; track a; let i = $index) {
+            <li [style.animation-delay.ms]="i * 50"><span class="tick" aria-hidden="true"></span>{{ a }}</li>
+          }
+        </ul>
+      </section>
+
+      <section class="block" appReveal>
+        <h2>Your room</h2>
+        <div class="room">
+          <img [src]="gallery()[1] || h.coverImageUrl" [alt]="h.room.name" loading="lazy" appImgFallback />
+          <div class="room-body">
+            <h3>{{ h.room.name }}</h3>
+            <p>{{ h.room.description }}</p>
+            <dl>
+              <div><dt>Bed</dt><dd>{{ h.room.bedType }}</dd></div>
+              <div><dt>Sleeps</dt><dd>{{ h.room.maxGuests }} guests</dd></div>
+              <div><dt>Rooms</dt><dd>{{ h.room.totalRooms }} in hotel</dd></div>
+              <div><dt>Price</dt><dd>{{ h.room.pricePerNight | currency: h.currency : 'symbol' : '1.0-0' }} / night</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Surprise feature: availability calendar ===== -->
+      <section class="block calendar" id="calendar" appReveal>
+        <div class="cal-head">
+          <div>
+            <h2>Availability calendar</h2>
+            <p class="hint">
+              @if (pickingCheckOut()) { Now tap your check-out day. }
+              @else { Tap a day to set check-in, then tap your check-out day. }
+            </p>
+          </div>
+          <div class="cal-arrows">
+            <button type="button" class="btn btn-outline btn-icon" (click)="scrollStrip(-1)" aria-label="Earlier dates">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+            </button>
+            <button type="button" class="btn btn-outline btn-icon" (click)="scrollStrip(1)" aria-label="Later dates">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke="currentColor" stroke-width="2.2" fill="none"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="legend">
+          <span><i class="lg lg-available"></i>Available</span>
+          <span><i class="lg lg-limited"></i>Few left</span>
+          <span><i class="lg lg-soldout"></i>Sold out</span>
+          <span><i class="lg lg-selected"></i>Your stay</span>
+        </div>
+
+        <div class="strip" #strip>
+          @for (d of days(); track d.date; let i = $index) {
+            <button type="button" class="day" [class]="'day ' + d.level.toLowerCase()"
+                    [class.selected]="inRange(d.date)" [class.checkout]="isCheckout(d.date)"
+                    [disabled]="d.level === 'SOLD_OUT' && !pickingCheckOut()"
+                    (click)="pickDay(d)"
+                    [attr.aria-label]="(d.date | date: 'fullDate') + ': ' + d.availableRooms + ' rooms left'">
+              <span class="month" [class.show]="isFirstOfMonth(d.date, i)">{{ d.date | date: 'MMM' }}</span>
+              <span class="dow">{{ d.date | date: 'EEE' }}</span>
+              <span class="num">{{ d.date | date: 'd' }}</span>
+              <span class="left">
+                @if (d.level === 'SOLD_OUT') { Full } @else { {{ d.availableRooms }} left }
+              </span>
+            </button>
+          }
+          @if (canLoadMoreDays()) {
+            <button type="button" class="day more" (click)="loadCalendar(true)" [disabled]="calendarLoading()">
+              <span class="num">+30</span><span class="left">more days</span>
+            </button>
+          }
+        </div>
+      </section>
+    </article>
+
+    <!-- ===== Right column: booking panel ===== -->
+    <aside class="panel-wrap">
+      <div class="panel fade-up" id="book">
+        <div class="panel-price">
+          <strong>{{ h.room.pricePerNight | currency: h.currency : 'symbol' : '1.0-0' }}</strong>
+          <span>per night</span>
+        </div>
+
+        <div class="dates">
+          <label>
+            <span>Check-in</span>
+            <input type="date" [(ngModel)]="checkIn" [min]="today" (change)="onCheckInChange()" />
+          </label>
+          <label>
+            <span>Check-out</span>
+            <input type="date" [(ngModel)]="checkOut" [min]="checkIn || today" (change)="refreshQuote()" />
+          </label>
+        </div>
+
+        @if (dateError() && (checkIn || checkOut)) {
+          <p class="field-error" role="alert">{{ dateError() }}</p>
+        }
+        @if (quoteError()) {
+          <div class="alert alert-error">{{ quoteError() }}</div>
+        }
+
+        @if (quoting()) {
+          <div class="quote-loading"><span></span><span></span><span></span></div>
+        } @else if (quote(); as q) {
+          @if (q.available) {
+            <div class="breakdown fade-up">
+              <div class="row">
+                <span>{{ q.pricePerNight | currency: q.currency : 'symbol' : '1.0-0' }} x {{ nightsLabel(q.nights) }}</span>
+                <span>{{ q.totalAmount | currency: q.currency : 'symbol' : '1.0-0' }}</span>
+              </div>
+              <div class="row total">
+                <span>Total</span>
+                <span>{{ q.totalAmount | currency: q.currency : 'symbol' : '1.2-2' }}</span>
+              </div>
+              <p class="stock" [class.low]="q.availableRooms <= 2">
+                {{ q.availableRooms === 1 ? 'Only 1 room left for these dates' : q.availableRooms + ' rooms left for these dates' }}
+              </p>
+            </div>
+            <button type="button" class="btn btn-primary btn-block" (click)="openDrawer()">Reserve this room</button>
+          } @else {
+            <div class="soldout fade-up">
+              <strong>Sold out for these dates</strong>
+              <p>No rooms are free on every night of this stay.</p>
+            </div>
+            @if (alternatives().length) {
+              <div class="alts">
+                <span class="alts-title">Nearest dates with a room</span>
+                @for (a of alternatives(); track a.checkIn; let i = $index) {
+                  <button type="button" class="alt fade-up" [style.animation-delay.ms]="i * 70" (click)="applyAlternative(a)">
+                    <span class="alt-dates">{{ a.checkIn | date: 'EEE d MMM' }} to {{ a.checkOut | date: 'EEE d MMM' }}</span>
+                    <span class="alt-meta">{{ shiftLabel(a.shiftDays) }} · {{ a.totalAmount | currency: q.currency : 'symbol' : '1.0-0' }}</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="muted">Try the availability calendar to find open nights.</p>
+            }
+          }
+        } @else if (!dateError()) {
+          <p class="muted">Choose your dates to see the total price.</p>
+        }
+
+        <p class="fine">Free cancellation until your check-in date. Taxes included.</p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ===== Mobile bottom bar ===== -->
+  <div class="mobile-bar">
+    @if (quote()?.available) {
+      <div><strong>{{ quote()!.totalAmount | currency: quote()!.currency : 'symbol' : '1.0-0' }}</strong><span>{{ nightsLabel(nights()) }}</span></div>
+      <button class="btn btn-primary" type="button" (click)="openDrawer()">Reserve</button>
+    } @else {
+      <div><strong>{{ h.room.pricePerNight | currency: h.currency : 'symbol' : '1.0-0' }}</strong><span>per night</span></div>
+      <a class="btn btn-primary" href="#book">Choose dates</a>
+    }
+  </div>
+
+  <!-- ===== Booking drawer (slides in from the right) ===== -->
+  <div class="scrim" [class.open]="drawerOpen()" (click)="closeDrawer()"></div>
+  <aside class="drawer" [class.open]="drawerOpen()" role="dialog" aria-modal="true" aria-labelledby="drawer-title"
+         [attr.aria-hidden]="!drawerOpen()">
+    @if (drawerQuote(); as q) {
+      <div class="drawer-head">
+        <h2 id="drawer-title">Confirm your stay</h2>
+        <button type="button" class="close" (click)="closeDrawer()" aria-label="Close">
+          <svg width="22" height="22" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"/></svg>
+        </button>
+      </div>
+
+      <div class="drawer-body">
+        <div class="summary">
+          <img [src]="h.coverImageUrl" [alt]="h.name" appImgFallback />
+          <div>
+            <strong>{{ h.name }}</strong>
+            <span>{{ q.roomName }}</span>
+            <span>{{ h.city }}</span>
+          </div>
+        </div>
+
+        <div class="stay-grid">
+          <div><span>Check-in</span><strong>{{ q.checkIn | date: 'EEE, d MMM y' }}</strong></div>
+          <div><span>Check-out</span><strong>{{ q.checkOut | date: 'EEE, d MMM y' }}</strong></div>
+        </div>
+
+        <form (ngSubmit)="confirm()" novalidate>
+          <div class="form-row">
+            <label for="guestName">Full name</label>
+            <input id="guestName" name="guestName" class="input" [class.invalid]="formErrors()['guestName']"
+                   [(ngModel)]="guestName" autocomplete="name" maxlength="100" />
+            @if (formErrors()['guestName']) { <span class="field-error">{{ formErrors()['guestName'] }}</span> }
+          </div>
+          <div class="form-row">
+            <label for="guestEmail">Email address</label>
+            <input id="guestEmail" name="guestEmail" type="email" class="input" [class.invalid]="formErrors()['guestEmail']"
+                   [(ngModel)]="guestEmail" autocomplete="email" maxlength="150" />
+            @if (formErrors()['guestEmail']) { <span class="field-error">{{ formErrors()['guestEmail'] }}</span> }
+            <small class="muted">You'll need this email with your booking reference to manage the booking.</small>
+          </div>
+
+          <div class="price-box">
+            <div class="row"><span>{{ q.pricePerNight | currency: q.currency : 'symbol' : '1.0-0' }} x {{ nightsLabel(q.nights) }}</span>
+              <span>{{ q.totalAmount | currency: q.currency : 'symbol' : '1.0-0' }}</span></div>
+            <div class="row total"><span>Total to pay at hotel</span><span>{{ q.totalAmount | currency: q.currency : 'symbol' : '1.2-2' }}</span></div>
+          </div>
+
+          @if (submitError()) { <div class="alert alert-error">{{ submitError() }}</div> }
+
+          <button type="submit" class="btn btn-primary btn-block" [disabled]="submitting()">
+            @if (submitting()) { <span class="spinner"></span> Booking... } @else { Confirm booking }
+          </button>
+        </form>
+      </div>
+    }
+  </aside>
+}
